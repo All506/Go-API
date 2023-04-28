@@ -1,11 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/gorilla/mux"
+	"io/ioutil"
 	"log"
 	"net/http"
-
-	"github.com/gorilla/mux"
 )
 
 type task struct {
@@ -38,6 +39,8 @@ func main() {
 	// modo estricto: /tasks/ no es valido, debe escribir url correcta si o si
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", indexRoute)
+	router.HandleFunc("/tasks", getTasks).Methods("GET")
+	router.HandleFunc("/tasks", createTask).Methods("POST")
 
 	//crea servidor http y muestra posibles errores en ejecucion
 	log.Fatal(http.ListenAndServe(":3000", router))
@@ -45,5 +48,27 @@ func main() {
 }
 
 func indexRoute(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hola to my API")
+	fmt.Fprintf(w, "Welcome to my API")
+}
+
+func getTasks(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(tasks)
+}
+
+func createTask(w http.ResponseWriter, r *http.Request) {
+	var newTask task
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		fmt.Fprintf(w, "Insert a valid task")
+	}
+
+	//Separa el JSON a un objeto
+	json.Unmarshal(reqBody, &newTask)
+	newTask.ID = len(tasks) + 1
+	tasks = append(tasks, newTask)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(newTask)
 }

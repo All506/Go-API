@@ -12,8 +12,8 @@ go run main.go
 
 En el camino se harán muchos cambios en los endpoints, por lo que cancelar la ejecución del servidor para después volverlo a ejecutar no es una opción. Compile Demon facilita esta tarea a través de guardar los cambios en los endpoints y re ejecutar el servidor. Para instalar esta herramienta se debe de correr el siguiente comando en consola:
 
-go get github.com/githubnemo/CompileDaemon
+go install github.com/githubnemo/CompileDaemon
 
-A partir de este punto, para ejecutar la api desde consola se debera de ejecutar el comando:
+Para asignar el .exe creado a un comando, se debe ejecutar:
 
-CompileDaemon
+CompileDaemon -command="Nombre del EXE"
