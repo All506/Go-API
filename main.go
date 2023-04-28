@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 type task struct {
@@ -41,7 +42,7 @@ func main() {
 	router.HandleFunc("/", indexRoute)
 	router.HandleFunc("/tasks", getTasks).Methods("GET")
 	router.HandleFunc("/tasks", createTask).Methods("POST")
-
+	router.HandleFunc("/tasks/{id}", getTask)
 	//crea servidor http y muestra posibles errores en ejecucion
 	log.Fatal(http.ListenAndServe(":3000", router))
 
@@ -71,4 +72,24 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(newTask)
+}
+
+func getTask(w http.ResponseWriter, r *http.Request) {
+	//Extrae variables del metodo
+	vars := mux.Vars(r)
+	//Convierte String a entero
+	taskID, err := strconv.Atoi(vars["id"])
+
+	if err != nil {
+		fmt.Fprintf(w, "Invalid Id")
+		return
+	}
+
+	//For para recorrer listas, cada unica tarea se guarda como task
+	for _, task := range tasks {
+		if task.ID == taskID {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(task)
+		}
+	}
 }
