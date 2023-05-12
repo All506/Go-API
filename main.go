@@ -3,17 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/gocql/gocql"
 	"github.com/gorilla/mux"
 )
 
 type task struct {
-	ID      int    `json:ID`
+	ID      string `json:ID`
 	Name    string `json:Name`
 	Content string `json:Content`
 }
@@ -52,9 +50,9 @@ func main() {
 	router.HandleFunc("/", indexRoute)
 	router.HandleFunc("/tasks", getTasks).Methods("GET")
 	router.HandleFunc("/tasks", createTask).Methods("POST")
-	router.HandleFunc("/tasks/{id}", getTask).Methods("GET")
-	router.HandleFunc("/tasks/{id}", deleteTask).Methods("DELETE")
-	router.HandleFunc("/tasks/{id}", updateTask).Methods("PUT")
+	router.HandleFunc("/tasks/{name}", getTask).Methods("GET")
+	//router.HandleFunc("/tasks/{id}", deleteTask).Methods("DELETE")
+	//router.HandleFunc("/tasks/{id}", updateTask).Methods("PUT")
 	println("API is running...")
 	//crea servidor http y muestra posibles errores en ejecucion
 	log.Fatal(http.ListenAndServe(":3000", router))
@@ -70,8 +68,8 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 	defer session.Close()
 
 	iter := session.Query("SELECT \"ID\",\"Name\",\"Content\" FROM tareas").Iter()
-	var id int
-	var name, content string
+
+	var id, name, content string
 
 	tasks := allTasks{}
 	for iter.Scan(&id, &name, &content) {
@@ -83,25 +81,20 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func getTask(w http.ResponseWriter, r *http.Request) {
-
 	vars := mux.Vars(r)
+	taskName := vars["name"]
+	println(taskName)
+
 	session := getSession()
-	taskID, err := strconv.Atoi(vars["id"])
-	println(taskID)
-
-	if err != nil {
-		fmt.Fprintf(w, "Invalid Id")
-		return
-	}
-
 	defer session.Close()
-	iter := session.Query("SELECT \"ID\",\"Name\",\"Content\" FROM tareas WHERE \"ID\"= ?", taskID).Iter()
+
+	iter := session.Query("SELECT \"Name\", \"Content\" FROM tareas WHERE \"Name\" = ?", taskName).Iter()
+
 	var name, content string
 
 	tasks := allTasks{}
-	for iter.Scan(&taskID, &name, &content) {
-		print(&taskID, &name, &content)
-		tasks = append(tasks, task{ID: taskID, Name: name, Content: content})
+	for iter.Scan(&name, &content) {
+		tasks = append(tasks, task{Name: name, Content: content})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -109,22 +102,35 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func createTask(w http.ResponseWriter, r *http.Request) {
-	var newTask task
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		fmt.Fprintf(w, "Insert a valid task")
-	}
 
-	//Separa el JSON a un objeto
-	json.Unmarshal(reqBody, &newTask)
-	newTask.ID = len(tasks) + 1
-	tasks = append(tasks, newTask)
+	decoder := json.NewDecoder(r.Body)
+	var t task
+	err := decoder.Decode(&t)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	session := getSession()
+	defer session.Close()
+
+	uuid := gocql.TimeUUID()
+	t.ID = uuid.String()
+
+	if err := session.Query("INSERT INTO tareas (\"ID\", \"Name\", \"Content\") VALUES (?, ?, ?)",
+		uuid, t.Name, t.Content).Exec(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(newTask)
+	json.NewEncoder(w).Encode(t)
+
 }
 
+/*
 func deleteTask(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	taskID, err := strconv.Atoi(vars["id"])
@@ -174,3 +180,4 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+*/
