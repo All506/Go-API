@@ -17,3 +17,7 @@ go install github.com/githubnemo/CompileDaemon
 Para asignar el .exe creado a un comando, se debe ejecutar:
 
 CompileDaemon -command="Nombre del EXE"
+
+# Controlador para conectar con Cassandra
+
+go get github.com/gocql/gocql

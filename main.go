@@ -3,11 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/gocql/gocql"
+	"github.com/gorilla/mux"
 )
 
 type task struct {
@@ -19,7 +21,7 @@ type task struct {
 type allTasks []task
 
 var tasks = allTasks{
-	{
+	/*{
 		ID:      1,
 		Name:    "Task One",
 		Content: "Information related to task number one",
@@ -33,11 +35,12 @@ var tasks = allTasks{
 		ID:      3,
 		Name:    "Task Three",
 		Content: "Information related to task number three",
-	},
+	},*/
 }
 
 func main() {
 	// modo estricto: /tasks/ no es valido, debe escribir url correcta si o si
+
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", indexRoute)
 	router.HandleFunc("/tasks", getTasks).Methods("GET")
@@ -55,25 +58,21 @@ func indexRoute(w http.ResponseWriter, r *http.Request) {
 }
 
 func getTasks(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tasks)
-}
+	cluster := gocql.NewCluster("127.0.0.1:9042")
+	cluster.Keyspace = "control_tareas"
+	session, _ := cluster.CreateSession()
+	defer session.Close()
 
-func createTask(w http.ResponseWriter, r *http.Request) {
-	var newTask task
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		fmt.Fprintf(w, "Insert a valid task")
+	iter := session.Query("SELECT \"ID\",\"Name\",\"Content\" FROM tareas").Iter()
+	var id int
+	var name, content string
+
+	for iter.Scan(&id, &name, &content) {
+		tasks = append(tasks, task{ID: id, Name: name, Content: content})
 	}
 
-	//Separa el JSON a un objeto
-	json.Unmarshal(reqBody, &newTask)
-	newTask.ID = len(tasks) + 1
-	tasks = append(tasks, newTask)
-
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(newTask)
+	json.NewEncoder(w).Encode(tasks)
 }
 
 func getTask(w http.ResponseWriter, r *http.Request) {
@@ -94,6 +93,23 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(task)
 		}
 	}
+}
+
+func createTask(w http.ResponseWriter, r *http.Request) {
+	var newTask task
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		fmt.Fprintf(w, "Insert a valid task")
+	}
+
+	//Separa el JSON a un objeto
+	json.Unmarshal(reqBody, &newTask)
+	newTask.ID = len(tasks) + 1
+	tasks = append(tasks, newTask)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(newTask)
 }
 
 func deleteTask(w http.ResponseWriter, r *http.Request) {
