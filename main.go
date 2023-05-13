@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gocql/gocql"
 	"github.com/gorilla/mux"
@@ -39,6 +40,7 @@ var tasks = allTasks{
 func getSession() *gocql.Session {
 	cluster := gocql.NewCluster("127.0.0.1:9042")
 	cluster.Keyspace = "control_tareas"
+	cluster.Timeout = time.Second * 60
 	session, _ := cluster.CreateSession()
 	return session
 }
@@ -83,22 +85,24 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 func getTask(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	taskName := vars["name"]
-	println(taskName)
 
 	session := getSession()
 	defer session.Close()
 
-	iter := session.Query("SELECT \"Name\", \"Content\" FROM tareas WHERE \"Name\" = ?", taskName).Iter()
+	var content string
+	query := fmt.Sprintf("SELECT \"Content\" FROM control_tareas.tareas WHERE \"Name\" = '%s';", taskName)
+	fmt.Println(query)
 
-	var name, content string
-
-	tasks := allTasks{}
-	for iter.Scan(&name, &content) {
-		tasks = append(tasks, task{Name: name, Content: content})
+	err := session.Query(query).Scan(&content)
+	if err == nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
+	task := task{Name: taskName, Content: content}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tasks)
+	json.NewEncoder(w).Encode(task)
 }
 
 func createTask(w http.ResponseWriter, r *http.Request) {
