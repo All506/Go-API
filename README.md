@@ -59,7 +59,7 @@ En sistemas de producción donde el uso de Cassandra es sí o sí necesario, se 
 Tras extraer los archivos descargados y moverlos a un lugar seguro, es necesario añadir una variable de sistema en la sección temp de Windows, que rediriga a la carpeta bin dentro del lugar donde Cassandra fue instalado
 
 <p align="center">
-<img src="./resources/install1.png">
+<img src="./resources/install1.PNG">
 </p>
 
 Una vez agregada la variable de entorno en el sistema, es necesario hacer modificaciones en el archivo cassandra.bat. Se debera de añadir la dirección donde se encuentra el jdk de la computadora que actualmente estamos utilizando. La línea de código se deberá añadir desde cero, por lo que la estructura de esta será:
@@ -69,7 +69,7 @@ set JAVA_HOME=DIRECCIÓN_DE_JDK
 ```
 
 <p align="center">
-<img src="./resources/install2.png">
+<img src="./resources/install2.PNG">
 </p>
 
 
@@ -80,7 +80,7 @@ Cassandra
 ```
 
 <p align="center">
-<img src="./resources/install3.png"> <p>Node localhost/127.0.0.1 state jump to NORMAL</p>
+<img src="./resources/install3.PNG"> <p>Node localhost/127.0.0.1 state jump to NORMAL</p>
 </p>
 
 
