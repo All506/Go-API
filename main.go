@@ -146,6 +146,7 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 	err := session.Query("SELECT \"ID\" FROM control_tareas.tareas WHERE \"Name\" = ?;", taskName).Scan(&taskID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -159,6 +160,7 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 
 }
 
+/*
 func updateTask(w http.ResponseWriter, r *http.Request) {
 	// Obtener el ID y el nombre de la tarea del parámetro de la URL
 	vars := mux.Vars(r)
