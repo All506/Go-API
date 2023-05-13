@@ -160,14 +160,12 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 
 }
 
-/*
 func updateTask(w http.ResponseWriter, r *http.Request) {
-	// Obtener el ID y el nombre de la tarea del parámetro de la URL
+
 	vars := mux.Vars(r)
 	taskID := vars["id"]
 	taskName := vars["name"]
 
-	// Decodificar el cuerpo de la solicitud en una tarea
 	var task task
 	err := json.NewDecoder(r.Body).Decode(&task)
 	if err != nil {
@@ -175,11 +173,9 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Abrir una sesión con la base de datos Cassandra
 	session := getSession()
 	defer session.Close()
 
-	// Actualizar la tarea en la base de datos
 	err = session.Query(`
 		UPDATE control_tareas.tareas SET "Content" = ? WHERE "ID" = ? AND "Name" = ?
 	`).Bind(task.Content, taskID, taskName).Exec()
@@ -188,7 +184,6 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Devolver la tarea actualizada
 	task.ID = taskID
 	task.Name = taskName
 	w.Header().Set("Content-Type", "application/json")
