@@ -17,6 +17,12 @@ type task struct {
 	Content string `json:Content`
 }
 
+type Tarea struct {
+	ID      gocql.UUID
+	Content string
+	Name    string
+}
+
 type allTasks []task
 
 var tasks = allTasks{
@@ -84,11 +90,21 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 
 func getTask(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	taskName := vars["name"]
+	name := vars["name"]
 
 	session := getSession()
 	defer session.Close()
 
+	var tarea Tarea
+	query := "SELECT * FROM control_tareas.tareas WHERE \"Name\" = ? LIMIT 1"
+	if err := session.Query(query, name).Consistency(gocql.One).Scan(&tarea.ID, &tarea.Content, &tarea.Name); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(tarea)
+
+	/**
 	var content string
 	query := fmt.Sprintf("SELECT \"Content\" FROM control_tareas.tareas WHERE \"Name\" = '%s';", taskName)
 	fmt.Println(query)
@@ -102,7 +118,8 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 	task := task{Name: taskName, Content: content}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(task)
+	json.NewEncoder(w).Encode(task)*/
+
 }
 
 func createTask(w http.ResponseWriter, r *http.Request) {
