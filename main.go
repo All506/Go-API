@@ -17,11 +17,11 @@ type task struct {
 	Content string `json:Content`
 }
 
-type Tarea struct {
+/*type Tarea struct {
 	ID      gocql.UUID
 	Content string
 	Name    string
-}
+}*/
 
 type allTasks []task
 
@@ -59,8 +59,8 @@ func main() {
 	router.HandleFunc("/tasks", getTasks).Methods("GET")
 	router.HandleFunc("/tasks", createTask).Methods("POST")
 	router.HandleFunc("/tasks/{name}", getTask).Methods("GET")
-	//router.HandleFunc("/tasks/{id}", deleteTask).Methods("DELETE")
-	//router.HandleFunc("/tasks/{id}", updateTask).Methods("PUT")
+	router.HandleFunc("/tasks/{name}", deleteTask).Methods("DELETE")
+	router.HandleFunc("/tasks/{id}/{name}", updateTask).Methods("PUT")
 	println("API is running...")
 	//crea servidor http y muestra posibles errores en ejecucion
 	log.Fatal(http.ListenAndServe(":3000", router))
@@ -95,30 +95,14 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 	session := getSession()
 	defer session.Close()
 
-	var tarea Tarea
+	var t task
 	query := "SELECT * FROM control_tareas.tareas WHERE \"Name\" = ? LIMIT 1"
-	if err := session.Query(query, name).Consistency(gocql.One).Scan(&tarea.ID, &tarea.Content, &tarea.Name); err != nil {
+	if err := session.Query(query, name).Consistency(gocql.One).Scan(&t.ID, &t.Name, &t.Content); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tarea)
-
-	/**
-	var content string
-	query := fmt.Sprintf("SELECT \"Content\" FROM control_tareas.tareas WHERE \"Name\" = '%s';", taskName)
-	fmt.Println(query)
-
-	err := session.Query(query).Scan(&content)
-	if err == nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	task := task{Name: taskName, Content: content}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(task)*/
+	json.NewEncoder(w).Encode(t)
 
 }
 
@@ -151,54 +135,61 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 
 }
 
-/*
 func deleteTask(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	taskID, err := strconv.Atoi(vars["id"])
+	taskName := vars["name"]
 
+	session := getSession()
+	defer session.Close()
+
+	var taskID gocql.UUID
+	err := session.Query("SELECT \"ID\" FROM control_tareas.tareas WHERE \"Name\" = ?;", taskName).Scan(&taskID)
 	if err != nil {
-		fmt.Fprintf(w, "Invalid Id")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// i representa el indice
-	for i, task := range tasks {
-		if task.ID == taskID {
-			//Conserva todo lo que este detras y delante del indice
-			tasks = append(tasks[:i], tasks[i+1:]...)
-			fmt.Fprintf(w, "Task with id %v has been remove succesfully", taskID)
-		}
+	err = session.Query("DELETE FROM control_tareas.tareas WHERE \"ID\" = ?;", taskID).Exec()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	fmt.Fprintf(w, "Tarea con nombre %s eliminada exitosamente", taskName)
+
 }
 
 func updateTask(w http.ResponseWriter, r *http.Request) {
+	// Obtener el ID y el nombre de la tarea del parámetro de la URL
 	vars := mux.Vars(r)
-	taskID, err := strconv.Atoi(vars["id"])
-	var updatedTask task
+	taskID := vars["id"]
+	taskName := vars["name"]
 
+	// Decodificar el cuerpo de la solicitud en una tarea
+	var task task
+	err := json.NewDecoder(r.Body).Decode(&task)
 	if err != nil {
-		fmt.Fprintf(w, "Invalid Id")
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	reqBody, err := ioutil.ReadAll(r.Body)
+	// Abrir una sesión con la base de datos Cassandra
+	session := getSession()
+	defer session.Close()
+
+	// Actualizar la tarea en la base de datos
+	err = session.Query(`
+		UPDATE control_tareas.tareas SET "Content" = ? WHERE "ID" = ? AND "Name" = ?
+	`).Bind(task.Content, taskID, taskName).Exec()
 	if err != nil {
-		fmt.Fprintf(w, "Please insert valid data")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	json.Unmarshal(reqBody, &updatedTask)
-
-	for i, task := range tasks {
-		if task.ID == taskID {
-			//Conserva todo lo que este detras y delante del indice
-			tasks = append(tasks[:i], tasks[i+1:]...)
-			updatedTask.ID = taskID
-			//Se añade la nueva tarea
-			tasks = append(tasks, updatedTask)
-			fmt.Fprintf(w, "Task with id %v has been updated", taskID)
-		}
-	}
+	// Devolver la tarea actualizada
+	task.ID = taskID
+	task.Name = taskName
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(task)
 
 }
-*/
