@@ -33,8 +33,26 @@ Universidad de Costa Rica, 2023
 <!---DIVISION-->
 
 **Índice**
-1. [Instalaciones necesarias](#Instalacion)
-2. [Extensiones Golang para APIs](#Extensiones)
+1. [Golang y Cassandra](#Ensayo)
+2. [Instalaciones necesarias](#Instalacion)
+3. [Extensiones Golang para APIs](#Extensiones)
+4. [Referencias](#Referencias)
+
+<!--DIVISION-->
+
+<div id='Ensayo'>
+
+# ¿Qué es Golang y Cassandra?
+	
+Golang fue creado por Google en el año 2007 y desde entonces una variedad de productos y servicios de consumo masivo han sido implementados exitosamente con este lenguaje. La implementación de Golang en su gran mayoría se debe a la facilidad de compilar el código con gran velocidad y precisión, donde algunas empresas han convertido segundos en milisegundos al migrar sus plataformas a este lenguaje. Otra de las grandes ventajas que Go provee sobre otros lenguajes utilizados actualmente como C# es el reducido consumo de recursos y la facilidad de escalabilidad que provee. Tras la publicación de Golang los casos de éxito no han hecho más que aumentar exponencialmente, empresas como Meta han creado ORMs desde cero con el lenguaje, Dropbox migró sus backend de Python a Go lo que mejoró la concurrencia y tiempos de ejecución, Netflix al ocupar un lenguaje que generara menos latencia que Java comenzaron a utilizar Go y finalmente, Riot Games implementa el lenguaje para la mayoría de sus operaciones backend debido a que según Aaron Torres, Administrador de Ingeniería de esta compañía, Go es relativamente sencillo en comparación a otros lenguajes, el código se construye tan rápido que se puede editar y volver a construir sin mayor complicación facilitando las pruebas, Go tiene una amplia biblioteca de producción de web server, raramente rompe la retrocompatibilidad y cuando lo hace generalmente se debe a las bibliotecas y no al lenguaje y concluye con que Go es bastante popular, por lo que hay un gran soporte por compañías de terceros.
+	
+En cuanto a Cassandra, es una base de datos distribuida NoSQL de código abierto que miles de compañías alrededor del mundo suelen utilizar debido a su facilidad de escalar y alta disponibilidad sin nunca comprometer el rendimiento de las consultas CQL (Cassandra Query Language) que se realizan. En el caso de que una base de datos Cassandra necesite más potencia, simplemente se pueden crear nuevos nodos que se interconectan entre sí a través del protocolo P2P por lo que cada nodo tendrá un token que ayudará a identificar donde está almacenada la información. Algunas de las empresas que suelen utilizar Cassandra Db son: Facebook, Spotify, Reddit e Instagram.
+
+Entre las razones por las que muchas compañias actualmente implementan Cassandra destaca que esta base de datos es excelente para almacenar datos de series temporales donde no se necesitan actualizar datos antiguos, la sencilla expansión geográfica que propone ya que debido a su modelo bajo funcionamiento P2P no existe un clúster padre del que los demás dependan, además de que el envio de información a nodos lejanos puede no ser tan caro por el mismo modelo anteriormente mencionado.
+
+</div>
+<!---DIVISION-->
+
 
 <!---DIVISION-->
 
@@ -129,4 +147,22 @@ En el caso de Cassandra, es necesario instalar un controlador (gocql) que sea ca
 ```
 go get github.com/gocql/gocql
 ```
+</div>
+
+<!---DIVISION-->
+<div id='Referencias'>
+	
+# Referencias
+
+[Casos de Estudio Go](https://go.dev/solutions/case-studies)
+	
+[Golang Game Development & Operations in Riot Games](https://technology.riotgames.com/news/leveraging-golang-game-development-and-operations)
+	
+[Introduccion a Apache Cassandra](https://aprenderbigdata.com/introduccion-apache-cassandra/)
+
+[Cassandra Basics](https://cassandra.apache.org/_/cassandra-basics.html)
+	
+[Cassandra Top Benefits - Canonical Post](https://ubuntu.com/blog/apache-cassandra-top-benefits)
+	
+
 </div>
