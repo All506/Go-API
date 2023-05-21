@@ -33,26 +33,9 @@ Universidad de Costa Rica, 2023
 <!---DIVISION-->
 
 **Índice**
-1. [Golang y Cassandra](#Ensayo)
-2. [Instalaciones necesarias](#Instalacion)
-3. [Extensiones Golang para APIs](#Extensiones)
-4. [Referencias](#Referencias)
-
-<!--DIVISION-->
-
-<div id='Ensayo'>
-
-# ¿Qué es Golang y Cassandra?
-	
-Golang fue creado por Google en el año 2007 y desde entonces una variedad de productos y servicios de consumo masivo han sido implementados exitosamente con este lenguaje. La implementación de Golang en su gran mayoría se debe a la facilidad de compilar el código con gran velocidad y precisión, donde algunas empresas han convertido segundos en milisegundos al migrar sus plataformas a este lenguaje. Otra de las grandes ventajas que Go provee sobre otros lenguajes utilizados actualmente como C# es el reducido consumo de recursos y la facilidad de escalabilidad que provee. Tras la publicación de Golang los casos de éxito no han hecho más que aumentar exponencialmente, empresas como Meta han creado ORMs desde cero con el lenguaje, Dropbox migró sus backend de Python a Go lo que mejoró la concurrencia y tiempos de ejecución, Netflix al ocupar un lenguaje que generara menos latencia que Java comenzaron a utilizar Go y finalmente, Riot Games implementa el lenguaje para la mayoría de sus operaciones backend debido a que según Aaron Torres, Administrador de Ingeniería de esta compañía, Go es relativamente sencillo en comparación a otros lenguajes, el código se construye tan rápido que se puede editar y volver a construir sin mayor complicación facilitando las pruebas, Go tiene una amplia biblioteca de producción de web server, raramente rompe la retrocompatibilidad y cuando lo hace generalmente se debe a las bibliotecas y no al lenguaje y concluye con que Go es bastante popular, por lo que hay un gran soporte por compañías de terceros.
-	
-En cuanto a Cassandra, es una base de datos distribuida NoSQL de código abierto que miles de compañías alrededor del mundo suelen utilizar debido a su facilidad de escalar y alta disponibilidad sin nunca comprometer el rendimiento de las consultas CQL (Cassandra Query Language) que se realizan. En el caso de que una base de datos Cassandra necesite más potencia, simplemente se pueden crear nuevos nodos que se interconectan entre sí a través del protocolo P2P por lo que cada nodo tendrá un token que ayudará a identificar donde está almacenada la información. Algunas de las empresas que suelen utilizar Cassandra Db son: Facebook, Spotify, Reddit e Instagram.
-
-Entre las razones por las que muchas compañias actualmente implementan Cassandra destaca que esta base de datos es excelente para almacenar datos de series temporales donde no se necesitan actualizar datos antiguos, la sencilla expansión geográfica que propone ya que debido a su modelo bajo funcionamiento P2P no existe un clúster padre del que los demás dependan, además de que el envio de información a nodos lejanos puede no ser tan caro por el mismo modelo anteriormente mencionado.
-
-</div>
-<!---DIVISION-->
-
+1. [Instalaciones necesarias](#Instalacion)
+2. [Extensiones Golang para APIs](#Extensiones)
+3. [Integración](#Integracion)
 
 <!---DIVISION-->
 
@@ -98,7 +81,7 @@ Cassandra
 ```
 
 <p align="center">
-<img src="./resources/install3.PNG"> <p>Node localhost/127.0.0.1 state jump to NORMAL</p>
+<img src="./resources/install3.png"> <p>Node localhost/127.0.0.1 state jump to NORMAL</p>
 </p>
 
 
@@ -142,7 +125,7 @@ CompileDaemon -command="Nombre del EXE"
 
 ## Controlador para conectar con Cassandra
 
-En el caso de Cassandra, es necesario instalar un controlador (gocql) que sea capaz de enviar las queries para que posteriormente sean ejecutadas por el gestor de bases de datos. El comando para instalar el conector es:
+En el caso de Cassandra, es necesario instal ar un controlador (gocql) que sea capaz de enviar las queries para que posteriormente sean ejecutadas por el gestor de bases de datos. El comando para instalar el conector es:
 
 ```
 go get github.com/gocql/gocql
@@ -150,19 +133,73 @@ go get github.com/gocql/gocql
 </div>
 
 <!---DIVISION-->
-<div id='Referencias'>
-	
-# Referencias
 
-[Casos de Estudio Go](https://go.dev/solutions/case-studies)
-	
-[Golang Game Development & Operations in Riot Games](https://technology.riotgames.com/news/leveraging-golang-game-development-and-operations)
-	
-[Introduccion a Apache Cassandra](https://aprenderbigdata.com/introduccion-apache-cassandra/)
+<div id='Integracion'>
 
-[Cassandra Basics](https://cassandra.apache.org/_/cassandra-basics.html)
-	
-[Cassandra Top Benefits - Canonical Post](https://ubuntu.com/blog/apache-cassandra-top-benefits)
-	
+# Integración
+
+Las aplicaciones estarán directamente conectadas con una API Golang que resolverá sus consultas y devolverá la información necesaria para que todo funcione correctamente. Esta API Golang se encargará de consultar la base de datos Cassandra DB para obtener los datos que precisa el cliente. En resumen, el flujo se vería de esta forma:
+
+```mermaid
+graph LR
+A[Aplicación Móvil] -->B(Golang API)
+B-->A
+    B --> C[Cassandra DB]
+    
+```
+
+## Configuración en Golang
+
+Tras crear la base de datos en Cassandra DB es necesario crear una función en Golang que sea capaz de retornar una sesión desde la que se consultará directamente a la base de datos toda la información que requiera la API. Tal función lucirá de la siguiente forma:
+
+```GO
+func getSession() *gocql.Session {
+	cluster := gocql.NewCluster("IP")
+	cluster.Keyspace = "KeySpace"
+	cluster.Timeout = time.Second * 60
+	session, _ := cluster.CreateSession()
+	return session
+}
+```
+
+Es necesario recalcar que la IP dependerá totalmente de donde está hosteada la base de datos, así mismo como el nombre del Keyspace, que es el lugar dentro del nodo donde se encuentra la información necesaria.
+
+Aparecerá un error, debido a que no se cuenta con la librería gocql instalada en la aplicación golang, por lo que es necesario correr el siguiente código en terminal:
+
+```
+go get github.com/gocql/gocql
+```
+
+A partir de este punto basta con crear cada uno de los endpoints del CRUD. Tomaremos como ejemplo el getTask de este proyecto:
+
+```GO
+func getTask(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	session := getSession()
+	defer session.Close()
+
+	var t task
+	query := "SELECT * FROM control_tareas.tareas WHERE \"Name\" = ? LIMIT 1"
+	if err := session.Query(query, name).Consistency(gocql.One).Scan(&t.ID, &t.Name, &t.Content); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(t)
+
+}
+```
+
+A partir de este punto analizaremos las siguientes lineas de código:
+
+__vars := mux.Vars(r):__ la libreria Mux se encargará de convertir cada uno de los atributos que reciba de la solicitud que envie el cliente en un arreglo Llave, Atributo. Es por esta razón que en la siguiente línea se obtiene lo que tiene el arreglo, específicamente con la llave [name].
+
+__session := getSession():__ inicia una sesión de la función que anteriormente fue creada.
+
+__w.Header().Set("Content-Type", "application/json"):__ lo que retornará el método estará en formato json.
+
+__json.NewEncoder(w).Encode(t):__ asigna el valor que encontró tras ejecutar el query a la respuesta del método Http y lo codifica en formato json.
 
 </div>
