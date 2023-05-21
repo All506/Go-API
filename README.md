@@ -36,6 +36,8 @@ Universidad de Costa Rica, 2023
 1. [Instalaciones necesarias](#Instalacion)
 2. [Extensiones Golang para APIs](#Extensiones)
 3. [Integración](#Integracion)
+4. [Guia de Investigación](#Guia)
+5. [Referencias](#Referencias)
 
 <!---DIVISION-->
 
@@ -81,7 +83,7 @@ Cassandra
 ```
 
 <p align="center">
-<img src="./resources/install3.png"> <p>Node localhost/127.0.0.1 state jump to NORMAL</p>
+<img src="./resources/install3.PNG"> <p>Node localhost/127.0.0.1 state jump to NORMAL</p>
 </p>
 
 
@@ -202,4 +204,41 @@ __w.Header().Set("Content-Type", "application/json"):__ lo que retornará el mé
 
 __json.NewEncoder(w).Encode(t):__ asigna el valor que encontró tras ejecutar el query a la respuesta del método Http y lo codifica en formato json.
 
+</div>
+
+<!---DIVISION-->
+
+<div id='Guia'>
+
+# Guia de Investigación
+
+1. ¿Cuáles son las mayores ventajas de Cassandra? 
+2. Cassandra utiliza un modelo P2P ¿Que ventajas y desventajas provee este modelo sobre otros que utilizan MySQL como ejemplo?
+3. ¿Cómo garantiza Cassandra la alta disponibilidad y escalabilidad?
+4. Cassandra se encarga de hacer replicación de datos ¿Cómo lo realiza?
+5. ¿Qué es el modelo de consistencia eventual con el que cuenta Cassandra DB?
+6. En cuanto al rendimiento, ¿Cuál es la mayor diferencia de Cassandra DB con respecto a otros sistemas de bases de datos?
+7. ¿Que beneficios ofrece Golang sobre Java y Python?
+8. Con tener conocimientos intermedios en C++/C es sencillo programar y aprender a utilizar el lenguaje Go ¿Por qué es tan similar Go de estos otros lenguajes?
+9. El código de las librerías de Go en su mayoría se descargan de repositorios de Github ¿Considera el sistema de administración y descarga de librerias de golang una desventaja?
+10. ¿Por qué nació Golang? ¿Cuál fue esa necesidad que potenció su desarrollo y posterior nacimiento?
+11. ¿Qué tan dificil es desarrollar interfaces de usuario en Golang? ¿Acaso es un lenguaje enfocado únicamente en back-end?
+12. ¿Qué diferencias ofrece Golang con respecto a otros lenguajes hablando de concurrencia?
+13. A través de internet es sencillo encontrar varias librerías que favorecen al desarollo de aplicaciones móviles; sin embargo, la mayoría de ellas están en desuso o desactualizadas ¿Cuál es la librería que se utiliza mayoritariamente para este propósito?
+14. ¿Cuál considera que es el futuro del lenguaje Go? ¿Cree que peleará en un futuro con lenguajes como Javascript?
+
+
+</div>
+
+<!---DIVISION-->
+
+<div id='Referencias'>
+
+# Referencias
+* [Casos de Estudio Golang](https://go.dev/solutions/case-studies)
+* [Aprovechar Golang para el desarrollo y las operaciones de juegos](https://technology.riotgames.com/news/leveraging-golang-game-development-and-operations)
+* [Introducción a Apache Cassandra](https://aprenderbigdata.com/introduccion-apache-cassandra/)
+* [Cassandra Basics](https://cassandra.apache.org/_/cassandra-basics.html)
+* [Top Benefits Apache Cassandra](https://cassandra.apache.org/_/cassandra-basics.html)
+* [Golang, REST API CRUD con go](https://www.youtube.com/watch?v=pQAV8A9KLwk&ab_channel=FaztCode)
 </div>
