@@ -132,8 +132,8 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 	defer session.Close()
 
 	err = session.Query(`
-		UPDATE control_tareas.tareas SET "Content" = ? WHERE "ID" = ? AND "Name" = ?
-	`).Bind(task.Content, taskID, taskName).Exec()
+		UPDATE control_tareas.tareas SET "Content" = ? WHERE "ID" = ?
+	`).Bind(task.Content, taskID).Exec()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
