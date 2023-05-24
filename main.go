@@ -17,7 +17,7 @@ func main() {
 	router.HandleFunc("/tasks", createTask).Methods("POST")
 	router.HandleFunc("/tasks/{name}", getTask).Methods("GET")
 	router.HandleFunc("/tasks/{name}", deleteTask).Methods("DELETE")
-	router.HandleFunc("/tasks/{id}/{name}", updateTask).Methods("PUT")
+	router.HandleFunc("/tasks/{id}", updateTask).Methods("PUT")
 	println("API is running...")
 	//Crea servidor http y muestra posibles errores en ejecucion
 	log.Fatal(http.ListenAndServe(":3000", router))

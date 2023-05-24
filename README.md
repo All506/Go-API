@@ -241,4 +241,8 @@ __json.NewEncoder(w).Encode(t):__ asigna el valor que encontró tras ejecutar el
 * [Cassandra Basics](https://cassandra.apache.org/_/cassandra-basics.html)
 * [Top Benefits Apache Cassandra](https://cassandra.apache.org/_/cassandra-basics.html)
 * [Golang, REST API CRUD con go](https://www.youtube.com/watch?v=pQAV8A9KLwk&ab_channel=FaztCode)
+<<<<<<< Updated upstream
 </div>
+=======
+</div>
+>>>>>>> Stashed changes

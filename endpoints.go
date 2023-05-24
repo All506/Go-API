@@ -19,10 +19,21 @@ type task struct {
 type allTasks []task
 
 func getSession() *gocql.Session {
-	cluster := gocql.NewCluster("127.0.0.1:9042")
+	//cluster := gocql.NewCluster("127.0.0.1:9042")
+	cluster := gocql.NewCluster("35.81.53.7", "35.81.67.246")
 	cluster.Keyspace = "control_tareas"
 	cluster.Timeout = time.Second * 60
-	session, _ := cluster.CreateSession()
+	cluster.Authenticator = gocql.PasswordAuthenticator{
+		Username:              "iccassandra",
+		Password:              "0d3d7fae6c8664f43527531a742582fb",
+		AllowedAuthenticators: []string{"com.instaclustr.cassandra.auth.InstaclustrPasswordAuthenticator"},
+	}
+	cluster.Consistency = gocql.Quorum
+	cluster.ProtoVersion = 4
+	session, err := cluster.CreateSession()
+	if err != nil {
+		println("Hubo un error: " + err.Error())
+	}
 	return session
 }
 
@@ -50,15 +61,22 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 	session := getSession()
 	defer session.Close()
 
+	query := "SELECT * FROM control_tareas.tareas WHERE \"Name\" = ?"
+	iter := session.Query(query, name).Iter()
+
+	var tasks []task
 	var t task
-	query := "SELECT * FROM control_tareas.tareas WHERE \"Name\" = ? LIMIT 1"
-	if err := session.Query(query, name).Consistency(gocql.One).Scan(&t.ID, &t.Name, &t.Content); err != nil {
+	for iter.Scan(&t.ID, &t.Content, &t.Name) {
+		tasks = append(tasks, t)
+	}
+
+	if err := iter.Close(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(t)
 
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(tasks)
 }
 
 func createTask(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +137,6 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	taskID := vars["id"]
-	taskName := vars["name"]
 
 	var task task
 	err := json.NewDecoder(r.Body).Decode(&task)
@@ -132,15 +149,14 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 	defer session.Close()
 
 	err = session.Query(`
-		UPDATE control_tareas.tareas SET "Content" = ? WHERE "ID" = ?
-	`).Bind(task.Content, taskID).Exec()
+		UPDATE control_tareas.tareas SET "Content" = ?, "Name" = ? WHERE "ID" = ?
+	`).Bind(task.Content, task.Name, taskID).Exec()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	task.ID = taskID
-	task.Name = taskName
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(task)
 
