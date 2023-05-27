@@ -110,26 +110,26 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 
 func deleteTask(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	taskName := vars["name"]
+	taskID := vars["id"]
 
 	session := getSession()
 	defer session.Close()
-
+/**
 	var taskID gocql.UUID
-	err := session.Query("SELECT \"ID\" FROM control_tareas.tareas WHERE \"Name\" = ?;", taskName).Scan(&taskID)
+	err := session.Query("SELECT \"ID\" FROM control_tareas.tareas WHERE \"ID\" = ?;", taskID).Scan(&taskID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	err = session.Query("DELETE FROM control_tareas.tareas WHERE \"ID\" = ?;", taskID).Exec()
+*/
+	err := session.Query("DELETE FROM control_tareas.tareas WHERE \"ID\" = ?;", taskID).Exec()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Fprintf(w, "Tarea con nombre %s eliminada exitosamente", taskName)
+	fmt.Fprintf(w, "Tarea con Id %s eliminada exitosamente", taskID)
 
 }
 
