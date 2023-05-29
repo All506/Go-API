@@ -1,14 +1,13 @@
 package main
 
 import (
-	"time"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gocql/gocql"
 	"github.com/gorilla/mux"
 )
-
 
 type task struct {
 	ID      string `json:"ID"`
@@ -26,8 +25,6 @@ func NewAPIHandler(session *gocql.Session) *APIHandler {
 	}
 }
 
-
-
 func main() {
 	cloudCassandra := true
 	cluster := gocql.NewCluster("127.0.0.1:9042")
@@ -41,9 +38,9 @@ func main() {
 		}
 		cluster.Consistency = gocql.Quorum
 		cluster.ProtoVersion = 4
-		
+
 	}
-	
+
 	cluster.Keyspace = "control_tareas"
 	cluster.Timeout = time.Second * 60
 

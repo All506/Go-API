@@ -29,7 +29,7 @@ func (h *APIHandler) GetTasks(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Error al obtener las tareas"))
 		return
 	}
-
+	println("Lista de tareas obtenida")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(tasks)
 }
@@ -46,7 +46,7 @@ func (h *APIHandler) GetTask(w http.ResponseWriter, r *http.Request) {
 
 	var id, name, content string
 
-	for iter.Scan(&id, &name, &content) {
+	for iter.Scan(&id, &content, &name) {
 		t := task{ID: id, Name: name, Content: content}
 		tasks = append(tasks, t)
 	}
@@ -57,7 +57,8 @@ func (h *APIHandler) GetTask(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Error al obtener las tareas"))
 		return
 	}
-
+	
+	println("Lista filtrada de tareas obtenida")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(tasks)
 }
@@ -84,6 +85,7 @@ func (h *APIHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	println("Tarea con nombre " + t.Name + " creada")
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -109,6 +111,7 @@ func (h *APIHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	println("Tarea con nombre " + t.Name + " actualizada")
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -125,5 +128,6 @@ func (h *APIHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	println("Tarea con ID " + taskID + " eliminada")
 	w.WriteHeader(http.StatusOK)
 }
