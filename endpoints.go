@@ -11,9 +11,9 @@ import (
 )
 
 type task struct {
-	ID      string `json:ID`
-	Name    string `json:Name`
-	Content string `json:Content`
+	ID      string `json:"ID"`
+	Name    string `json:"Name"`
+	Content string `json:"Content"`
 }
 
 type allTasks []task
@@ -41,13 +41,46 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 	session := getSession()
 	defer session.Close()
 
-	iter := session.Query("SELECT \"ID\",\"Name\",\"Content\" FROM tareas").Iter()
+	// Crear un canal para recibir los resultados de la consulta
+	taskChan := make(chan task)
+	errChan := make(chan error)
 
-	var id, name, content string
+	// Ejecutar la consulta en una goroutine
+	go func() {
+		iter := session.Query("SELECT \"ID\",\"Name\",\"Content\" FROM tareas").Iter()
 
-	tasks := allTasks{}
-	for iter.Scan(&id, &name, &content) {
-		tasks = append(tasks, task{ID: id, Name: name, Content: content})
+		var id, name, content string
+
+		for iter.Scan(&id, &name, &content) {
+			t := task{ID: id, Name: name, Content: content}
+			taskChan <- t
+		}
+
+		// Comprobar si hubo algún error en la iteración
+		if err := iter.Close(); err != nil {
+			errChan <- err
+		}
+
+		close(taskChan)
+		close(errChan)
+	}()
+
+	var tasks allTasks
+	var errors []error
+
+	for t := range taskChan {
+		tasks = append(tasks, t)
+	}
+
+	for err := range errChan {
+		errors = append(errors, err)
+	}
+
+	// Comprobar si hubo algún error en la consulta
+	if len(errors) > 0 {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error al obtener las tareas"))
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -61,26 +94,43 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 	session := getSession()
 	defer session.Close()
 
-	query := "SELECT * FROM control_tareas.tareas WHERE \"Name\" = ?"
-	iter := session.Query(query, name).Iter()
+	// Goroutine para controlar la concurrencia
+	errChan := make(chan error, 1)
+	go func() {
+		query := "SELECT * FROM control_tareas.tareas WHERE \"Name\" = ?"
+		iter := session.Query(query, name).Iter()
 
-	var tasks []task
-	var t task
-	for iter.Scan(&t.ID, &t.Content, &t.Name) {
-		tasks = append(tasks, t)
-	}
+		var tasks []task
+		var t task
+		for iter.Scan(&t.ID, &t.Content, &t.Name) {
+			tasks = append(tasks, t)
+		}
 
-	if err := iter.Close(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err := iter.Close(); err != nil {
+			errChan <- err
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(tasks)
+
+		errChan <- nil
+	}()
+
+	// Control de error en caso de que no se pueda conectar a la base de datos
+	select {
+	case err := <-errChan:
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	case <-time.After(time.Second * 30):
+		http.Error(w, "Tiempo de espera agotado para la conexión a la base de datos", http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tasks)
 }
 
 func createTask(w http.ResponseWriter, r *http.Request) {
-
 	decoder := json.NewDecoder(r.Body)
 	var t task
 	err := decoder.Decode(&t)
@@ -96,16 +146,31 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 	uuid := gocql.TimeUUID()
 	t.ID = uuid.String()
 
-	if err := session.Query("INSERT INTO tareas (\"ID\", \"Name\", \"Content\") VALUES (?, ?, ?)",
-		uuid, t.Name, t.Content).Exec(); err != nil {
+	// Crear un canal para recibir errores
+	errChan := make(chan error, 1)
+
+	// Goroutine para la inserción en la base de datos
+	go func() {
+		// Control de error en la inserción
+		if err := session.Query("INSERT INTO tareas (\"ID\", \"Name\", \"Content\") VALUES (?, ?, ?)",
+			uuid, t.Name, t.Content).Exec(); err != nil {
+			errChan <- err
+			return
+		}
+		errChan <- nil
+	}()
+
+	// Esperar el resultado de la goroutine
+	err = <-errChan
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	println("Task with name " + t.Name + " created")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(t)
-
 }
 
 func deleteTask(w http.ResponseWriter, r *http.Request) {
@@ -114,27 +179,29 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 
 	session := getSession()
 	defer session.Close()
-/**
-	var taskID gocql.UUID
-	err := session.Query("SELECT \"ID\" FROM control_tareas.tareas WHERE \"ID\" = ?;", taskID).Scan(&taskID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-*/
-	err := session.Query("DELETE FROM control_tareas.tareas WHERE \"ID\" = ?;", taskID).Exec()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+	errChan := make(chan error) // Canal para recibir errores de la goroutine
+
+	go func() {
+		err := session.Query("DELETE FROM control_tareas.tareas WHERE \"ID\" = ?;", taskID).Exec()
+		errChan <- err // Enviar el error al canal
+	}()
+
+	select {
+	case err := <-errChan: // Recibir el error de la goroutine
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	case <-time.After(time.Second * 30): // Tiempo de espera máximo
+		http.Error(w, "Tiempo de espera agotado", http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Fprintf(w, "Tarea con Id %s eliminada exitosamente", taskID)
-
+	fmt.Fprintf(w, "Tarea con ID %s eliminada exitosamente", taskID)
 }
 
 func updateTask(w http.ResponseWriter, r *http.Request) {
-
 	vars := mux.Vars(r)
 	taskID := vars["id"]
 
@@ -148,9 +215,19 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 	session := getSession()
 	defer session.Close()
 
-	err = session.Query(`
-		UPDATE control_tareas.tareas SET "Content" = ?, "Name" = ? WHERE "ID" = ?
-	`).Bind(task.Content, task.Name, taskID).Exec()
+	// Utilizamos un canal para recibir el resultado de la goroutine
+	resultChan := make(chan error)
+
+	go func() {
+		err := session.Query(`
+			UPDATE control_tareas.tareas SET "Content" = ?, "Name" = ? WHERE "ID" = ?
+		`).Bind(task.Content, task.Name, taskID).Exec()
+		resultChan <- err
+	}()
+
+	// Esperamos el resultado de la goroutine
+	err = <-resultChan
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -159,5 +236,4 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 	task.ID = taskID
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(task)
-
 }
