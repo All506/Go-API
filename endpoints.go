@@ -2,162 +2,132 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
-	"time"
 
 	"github.com/gocql/gocql"
 	"github.com/gorilla/mux"
 )
 
-type task struct {
-	ID      string `json:ID`
-	Name    string `json:Name`
-	Content string `json:Content`
-}
 
-type allTasks []task
+func (h *APIHandler) GetTasks(w http.ResponseWriter, r *http.Request) {
+	var tasks []task
 
-func getSession() *gocql.Session {
-	//cluster := gocql.NewCluster("127.0.0.1:9042")
-	cluster := gocql.NewCluster("35.81.53.7", "35.81.67.246")
-	cluster.Keyspace = "control_tareas"
-	cluster.Timeout = time.Second * 60
-	cluster.Authenticator = gocql.PasswordAuthenticator{
-		Username:              "iccassandra",
-		Password:              "0d3d7fae6c8664f43527531a742582fb",
-		AllowedAuthenticators: []string{"com.instaclustr.cassandra.auth.InstaclustrPasswordAuthenticator"},
-	}
-	cluster.Consistency = gocql.Quorum
-	cluster.ProtoVersion = 4
-	session, err := cluster.CreateSession()
-	if err != nil {
-		println("Hubo un error: " + err.Error())
-	}
-	return session
-}
-
-func getTasks(w http.ResponseWriter, r *http.Request) {
-	session := getSession()
-	defer session.Close()
-
-	iter := session.Query("SELECT \"ID\",\"Name\",\"Content\" FROM tareas").Iter()
+	iter := h.session.Query("SELECT \"ID\",\"Name\",\"Content\" FROM tareas").Iter()
+	defer iter.Close()
 
 	var id, name, content string
 
-	tasks := allTasks{}
 	for iter.Scan(&id, &name, &content) {
-		tasks = append(tasks, task{ID: id, Name: name, Content: content})
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tasks)
-}
-
-func getTask(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	name := vars["name"]
-
-	session := getSession()
-	defer session.Close()
-
-	query := "SELECT * FROM control_tareas.tareas WHERE \"Name\" = ?"
-	iter := session.Query(query, name).Iter()
-
-	var tasks []task
-	var t task
-	for iter.Scan(&t.ID, &t.Content, &t.Name) {
+		t := task{ID: id, Name: name, Content: content}
 		tasks = append(tasks, t)
 	}
 
 	if err := iter.Close(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Println("Error al obtener las tareas:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error al obtener las tareas"))
 		return
 	}
-
+	println("Lista de tareas obtenida")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(tasks)
 }
 
-func createTask(w http.ResponseWriter, r *http.Request) {
+func (h *APIHandler) GetTask(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	taskName := vars["name"]
 
-	decoder := json.NewDecoder(r.Body)
-	var t task
-	err := decoder.Decode(&t)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	var tasks []task
+
+	query := "SELECT * FROM control_tareas.tareas WHERE \"Name\" = ?"
+	iter := h.session.Query(query, taskName).Iter()
+	defer iter.Close()
+
+	var id, name, content string
+
+	for iter.Scan(&id, &content, &name) {
+		t := task{ID: id, Name: name, Content: content}
+		tasks = append(tasks, t)
+	}
+
+	if err := iter.Close(); err != nil {
+		log.Println("Error al obtener las tareas:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error al obtener las tareas"))
 		return
 	}
-	defer r.Body.Close()
+	
+	println("Lista filtrada de tareas obtenida")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(tasks)
+}
 
-	session := getSession()
-	defer session.Close()
+func (h *APIHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
+	var t task
+	err := json.NewDecoder(r.Body).Decode(&t)
+	if err != nil {
+		log.Println("Error al decodificar la solicitud:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Solicitud inválida"))
+		return
+	}
 
 	uuid := gocql.TimeUUID()
-	t.ID = uuid.String()
+ 	t.ID = uuid.String()
 
-	if err := session.Query("INSERT INTO tareas (\"ID\", \"Name\", \"Content\") VALUES (?, ?, ?)",
-		uuid, t.Name, t.Content).Exec(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	query := "INSERT INTO tareas (\"ID\", \"Name\", \"Content\") VALUES (?, ?, ?)"
+	err = h.session.Query(query, t.ID, t.Name, t.Content).Exec()
+	if err != nil {
+		log.Println("Error al crear la tarea:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error al crear la tarea"))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	println("Tarea con nombre " + t.Name + " creada")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(t)
-
 }
 
-func deleteTask(w http.ResponseWriter, r *http.Request) {
+func (h *APIHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	taskID := vars["id"]
 
-	session := getSession()
-	defer session.Close()
-/**
-	var taskID gocql.UUID
-	err := session.Query("SELECT \"ID\" FROM control_tareas.tareas WHERE \"ID\" = ?;", taskID).Scan(&taskID)
+	var t task
+	err := json.NewDecoder(r.Body).Decode(&t)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-*/
-	err := session.Query("DELETE FROM control_tareas.tareas WHERE \"ID\" = ?;", taskID).Exec()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Println("Error al decodificar la solicitud:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Solicitud inválida"))
 		return
 	}
 
-	fmt.Fprintf(w, "Tarea con Id %s eliminada exitosamente", taskID)
+	query := "UPDATE control_tareas.tareas SET \"Content\" = ?, \"Name\" = ? WHERE \"ID\" = ?"
+	err = h.session.Query(query, t.Content, t.Name, taskID).Exec()
+	if err != nil {
+		log.Println("Error al actualizar la tarea:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error al actualizar la tarea"))
+		return
+	}
 
+	println("Tarea con nombre " + t.Name + " actualizada")
+	w.WriteHeader(http.StatusOK)
 }
 
-func updateTask(w http.ResponseWriter, r *http.Request) {
-
+func (h *APIHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	taskID := vars["id"]
 
-	var task task
-	err := json.NewDecoder(r.Body).Decode(&task)
+	query := "DELETE FROM control_tareas.tareas WHERE \"ID\" = ?;"
+	err := h.session.Query(query, taskID).Exec()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Println("Error al eliminar la tarea:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error al eliminar la tarea"))
 		return
 	}
 
-	session := getSession()
-	defer session.Close()
-
-	err = session.Query(`
-		UPDATE control_tareas.tareas SET "Content" = ?, "Name" = ? WHERE "ID" = ?
-	`).Bind(task.Content, task.Name, taskID).Exec()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	task.ID = taskID
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(task)
-
+	println("Tarea con ID " + taskID + " eliminada")
+	w.WriteHeader(http.StatusOK)
 }
